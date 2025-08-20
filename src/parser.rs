@@ -322,21 +322,21 @@ impl<'a, D: TupleConcat<i32>> CommandParser<'a, D> {
 
         let (buffer_index, data_valid, data) = self.parse_int_parameter();
         if let Some(parameter_value) = data {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid,
                 data: self.data.tup_cat(parameter_value),
             }
-            .trim_space();
+            .trim_space()
         } else {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid: false,
                 data: self.data.tup_cat(0),
             }
-            .trim_space();
+            .trim_space()
         }
     }
 }
@@ -356,21 +356,21 @@ impl<'a, D: TupleConcat<&'a str>> CommandParser<'a, D> {
 
         let (buffer_index, data_valid, data) = self.parse_string_parameter();
         if let Some(parameter_value) = data {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid,
                 data: self.data.tup_cat(parameter_value),
             }
-            .trim_space();
+            .trim_space()
         } else {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid: false,
                 data: self.data.tup_cat(""),
             }
-            .trim_space();
+            .trim_space()
         }
     }
 
@@ -388,21 +388,21 @@ impl<'a, D: TupleConcat<&'a str>> CommandParser<'a, D> {
 
         let (buffer_index, data_valid, data) = self.parse_raw_string();
         if let Some(parameter_value) = data {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid,
                 data: self.data.tup_cat(parameter_value),
             }
-            .trim_space();
+            .trim_space()
         } else {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid: false,
                 data: self.data.tup_cat(""),
             }
-            .trim_space();
+            .trim_space()
         }
     }
 
@@ -420,21 +420,21 @@ impl<'a, D: TupleConcat<&'a str>> CommandParser<'a, D> {
 
         let (buffer_index, data_valid, data) = self.parse_raw_string_parameter();
         if let Some(parameter_value) = data {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid,
                 data: self.data.tup_cat(parameter_value),
             }
-            .trim_space();
+            .trim_space()
         } else {
-            return CommandParser {
+            CommandParser {
                 buffer: self.buffer,
                 buffer_index,
                 data_valid: false,
                 data: self.data.tup_cat(""),
             }
-            .trim_space();
+            .trim_space()
         }
     }
 }
@@ -457,13 +457,13 @@ impl<'a, D: TupleConcat<Option<i32>>> CommandParser<'a, D> {
         }
 
         let (buffer_index, data_valid, data) = self.parse_int_parameter();
-        return CommandParser {
+        CommandParser {
             buffer: self.buffer,
             buffer_index,
             data_valid,
             data: self.data.tup_cat(data),
         }
-        .trim_space();
+        .trim_space()
     }
 }
 
@@ -481,13 +481,13 @@ impl<'a, D: TupleConcat<Option<&'a str>>> CommandParser<'a, D> {
         }
 
         let (buffer_index, data_valid, data) = self.parse_string_parameter();
-        return CommandParser {
+        CommandParser {
             buffer: self.buffer,
             buffer_index,
             data_valid,
             data: self.data.tup_cat(data),
         }
-        .trim_space();
+        .trim_space()
     }
 
     /// Tries reading a non-parameter, non-quoted string
@@ -503,13 +503,13 @@ impl<'a, D: TupleConcat<Option<&'a str>>> CommandParser<'a, D> {
         }
 
         let (buffer_index, data_valid, data) = self.parse_raw_string();
-        return CommandParser {
+        CommandParser {
             buffer: self.buffer,
             buffer_index,
             data_valid,
             data: self.data.tup_cat(data),
         }
-        .trim_space();
+        .trim_space()
     }
 
     /// Tries reading an optional raw string parameter (non-quoted string separated by commas)
@@ -525,13 +525,13 @@ impl<'a, D: TupleConcat<Option<&'a str>>> CommandParser<'a, D> {
         }
 
         let (buffer_index, data_valid, data) = self.parse_raw_string_parameter();
-        return CommandParser {
+        CommandParser {
             buffer: self.buffer,
             buffer_index,
             data_valid,
             data: self.data.tup_cat(data),
         }
-        .trim_space();
+        .trim_space()
     }
 }
 
