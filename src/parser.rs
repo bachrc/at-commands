@@ -169,6 +169,21 @@ impl<'a, D> CommandParser<'a, D> {
                 .unwrap_or(self.buffer.len())
     }
 
+    /// Finds the index of the character after the raw string parameter (comma or end of data).
+    fn find_end_of_raw_string_parameter(&self) -> usize {
+        self.buffer_index
+            + self
+                .buffer
+                .get(self.buffer_index..)
+                .map(|buffer| {
+                    buffer
+                        .iter()
+                        .take_while(|byte| **byte != b',' && !(**byte as char).is_ascii_control())
+                        .count()
+                })
+                .unwrap_or(self.buffer.len())
+    }
+
     fn parse_int_parameter(&self) -> (usize, bool, Option<i32>) {
         let mut new_buffer_index = self.buffer_index;
         // Get the end index of the current parameter.
@@ -237,7 +252,7 @@ impl<'a, D> CommandParser<'a, D> {
         }
     }
 
-    fn parse_raw_string_parameter(&self) -> (usize, bool, Option<&'a str>) {
+    fn parse_raw_string(&self) -> (usize, bool, Option<&'a str>) {
         let mut new_buffer_index = self.buffer_index;
         // Get the end index of the current string.
         let end = self.find_end_of_raw_string();
@@ -247,6 +262,38 @@ impl<'a, D> CommandParser<'a, D> {
         // Advance the index to the character after the string.
         new_buffer_index = end - 1usize;
 
+        // If we've found a valid string, then the data may be valid and we allow the closure to set the result ok data.
+        if let Ok(parameter_value) = core::str::from_utf8(string_slice) {
+            (new_buffer_index, true, Some(parameter_value))
+        } else {
+            (new_buffer_index, false, None)
+        }
+    }
+
+    fn parse_raw_string_parameter(&self) -> (usize, bool, Option<&'a str>) {
+        let mut new_buffer_index = self.buffer_index;
+        // Get the end index of the current parameter.
+        let parameter_end = self.find_end_of_raw_string_parameter();
+        // Get the bytes in which the string should reside.
+        let string_slice = &self.buffer[new_buffer_index..parameter_end];
+
+        if string_slice.is_empty() {
+            // We probably hit the end of the buffer.
+            // The parameter is empty but as it is optional not invalid
+            // Advance the index to the character after the parameter separator (comma) if it's there.
+            new_buffer_index =
+                parameter_end + (self.buffer.get(parameter_end) == Some(&b',')) as usize;
+            return (new_buffer_index, true, None);
+        }
+
+        let has_comma_after_parameter = if let Some(next_char) = self.buffer.get(parameter_end) {
+            *next_char == b','
+        } else {
+            false
+        };
+
+        // Advance the index to the character after the parameter separator.
+        new_buffer_index = parameter_end + has_comma_after_parameter as usize;
         // If we've found a valid string, then the data may be valid and we allow the closure to set the result ok data.
         if let Ok(parameter_value) = core::str::from_utf8(string_slice) {
             (new_buffer_index, true, Some(parameter_value))
@@ -344,6 +391,38 @@ impl<'a, D: TupleConcat<&'a str>> CommandParser<'a, D> {
             };
         }
 
+        let (buffer_index, data_valid, data) = self.parse_raw_string();
+        if let Some(parameter_value) = data {
+            return CommandParser {
+                buffer: self.buffer,
+                buffer_index,
+                data_valid,
+                data: self.data.tup_cat(parameter_value),
+            }
+            .trim_space();
+        } else {
+            return CommandParser {
+                buffer: self.buffer,
+                buffer_index,
+                data_valid: false,
+                data: self.data.tup_cat(""),
+            }
+            .trim_space();
+        }
+    }
+
+    /// Tries reading a raw string parameter (non-quoted string separated by commas)
+    pub fn expect_raw_string_parameter(self) -> CommandParser<'a, D::Out> {
+        // If we're already not valid, then quit
+        if !self.data_valid {
+            return CommandParser {
+                buffer: self.buffer,
+                buffer_index: self.buffer_index,
+                data_valid: self.data_valid,
+                data: self.data.tup_cat(""),
+            };
+        }
+
         let (buffer_index, data_valid, data) = self.parse_raw_string_parameter();
         if let Some(parameter_value) = data {
             return CommandParser {
@@ -418,6 +497,28 @@ impl<'a, D: TupleConcat<Option<&'a str>>> CommandParser<'a, D> {
 
     /// Tries reading a non-parameter, non-quoted string
     pub fn expect_optional_raw_string(self) -> CommandParser<'a, D::Out> {
+        // If we're already not valid, then quit
+        if !self.data_valid {
+            return CommandParser {
+                buffer: self.buffer,
+                buffer_index: self.buffer_index,
+                data_valid: self.data_valid,
+                data: self.data.tup_cat(None),
+            };
+        }
+
+        let (buffer_index, data_valid, data) = self.parse_raw_string();
+        return CommandParser {
+            buffer: self.buffer,
+            buffer_index,
+            data_valid,
+            data: self.data.tup_cat(data),
+        }
+        .trim_space();
+    }
+
+    /// Tries reading an optional raw string parameter (non-quoted string separated by commas)
+    pub fn expect_optional_raw_string_parameter(self) -> CommandParser<'a, D::Out> {
         // If we're already not valid, then quit
         if !self.data_valid {
             return CommandParser {
@@ -592,5 +693,24 @@ mod tests {
         assert_eq!(x, None);
         assert_eq!(y, Some("true"));
         assert_eq!(z, None);
+    }
+
+    #[test]
+    fn test_raw_string_parameter() {
+        let (x, y, raw, z) =
+            CommandParser::parse(b"+SYSGPIOREAD:654,\"true\",123ABC,-65154\r\nOK\r\n")
+                .expect_identifier(b"+SYSGPIOREAD:")
+                .expect_int_parameter()
+                .expect_string_parameter()
+                .expect_raw_string_parameter()
+                .expect_int_parameter()
+                .expect_identifier(b"\r\nOK\r\n")
+                .finish()
+                .unwrap();
+
+        assert_eq!(x, 654);
+        assert_eq!(y, "true");
+        assert_eq!(raw, "123ABC");
+        assert_eq!(z, -65154);
     }
 }
