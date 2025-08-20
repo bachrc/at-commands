@@ -175,12 +175,7 @@ impl<'a, D> CommandParser<'a, D> {
             + self
                 .buffer
                 .get(self.buffer_index..)
-                .map(|buffer| {
-                    buffer
-                        .iter()
-                        .take_while(|byte| **byte != b',' && !(**byte as char).is_ascii_control())
-                        .count()
-                })
+                .map(|buffer| buffer.iter().take_while(|byte| **byte != b',').count())
                 .unwrap_or(self.buffer.len())
     }
 
@@ -711,6 +706,25 @@ mod tests {
         assert_eq!(x, 654);
         assert_eq!(y, "true");
         assert_eq!(raw, "123ABC");
+        assert_eq!(z, -65154);
+    }
+
+    #[test]
+    fn raw_string_parameters_includes_non_ascii_characters() {
+        let (x, y, raw, z) =
+            CommandParser::parse("+SYSGPIOREAD:654,\"true\",123àABC,-65154\r\nOK\r\n".as_bytes())
+                .expect_identifier(b"+SYSGPIOREAD:")
+                .expect_int_parameter()
+                .expect_string_parameter()
+                .expect_raw_string_parameter()
+                .expect_int_parameter()
+                .expect_identifier(b"\r\nOK\r\n")
+                .finish()
+                .unwrap();
+
+        assert_eq!(x, 654);
+        assert_eq!(y, "true");
+        assert_eq!(raw, "123àABC");
         assert_eq!(z, -65154);
     }
 }
